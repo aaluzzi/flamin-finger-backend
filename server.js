@@ -1,5 +1,6 @@
 const express = require('express');
 const axios = require('axios');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 
@@ -31,7 +32,16 @@ app.get('/api/callback', async (req, res, next) => {
 		const userDataResponse = await axios.get('https://discord.com/api/v10/users/@me', {
 			headers: { Authorization: `Bearer ${tokenResponse.data.access_token}` },
 		});
-		res.json(userDataResponse.data);
+
+        const user = {
+            id: userDataResponse.data.id, 
+            username: userDataResponse.data.username, 
+            name: userDataResponse.data.global_name
+        };
+
+        const accessToken = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET);
+
+		res.json({token: accessToken});
 	} catch (err) {
 		return next(err);
 	}
