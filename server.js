@@ -47,6 +47,30 @@ app.get('/api/callback', async (req, res, next) => {
 	}
 });
 
+app.post('/submit', authenticateToken, (req, res) => {
+    const score = req.headers['score']
+    if (score) {
+        console.log(`${req.user.username} submitted score ${score}`);
+        res.sendStatus(200);
+    }
+});
+
+function authenticateToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (token == null) {
+        return res.sendStatus(401);
+    }
+
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
+        if (err) {
+            return res.sendStatus(403);
+        }
+        req.user = user;
+        next();
+    });
+}
+
 app.listen(process.env.PORT, () => {
 	console.log(`Listening on ${process.env.PORT}`);
 });
