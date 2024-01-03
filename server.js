@@ -4,6 +4,11 @@ const jwt = require('jsonwebtoken');
 
 const app = express();
 
+const mongoose = require('mongoose');
+mongoose.connect(process.env.MONGODB_URI);
+
+const User = require('./models/user');
+
 app.get('/login', (req, res) => {
 	res.redirect(
 		`https://discord.com/oauth2/authorize?response_type=code&client_id=${process.env.DISCORD_CLIENT_ID}&scope=identify&redirect_uri=${process.env.REDIRECT_URI}&prompt=consent`
@@ -47,12 +52,29 @@ app.get('/api/callback', async (req, res, next) => {
 	}
 });
 
-app.post('/submit', authenticateToken, (req, res) => {
-    const score = req.headers['score']
-    if (score) {
-        console.log(`${req.user.username} submitted score ${score}`);
+app.get('/api/user', authenticateToken, async (req, res) => {
+	let user = await User.findOne({discordId: req.user.id}).lean().select('-_id -__v');;
+	if (!user) {
+		user = req.user;
+	}
+	res.json(user);
+});
+
+app.post('/submit', authenticateToken, async (req, res) => {
+    const score = Number(req.headers['score']);
+    if (score && score > 0 && score < 999) {
+		await User.findOneAndUpdate({discordId: req.user.id}, {
+			discordId: req.user.id,
+			username: req.user.username,
+			name: req.user.name,
+			highscore: score,
+			highscoreDate: new Date(),
+		}, {upsert: true});
+
         res.sendStatus(200);
-    }
+    } else {
+		res.status(400).send('Invalid score');
+	}
 });
 
 function authenticateToken(req, res, next) {
