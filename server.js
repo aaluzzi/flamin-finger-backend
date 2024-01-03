@@ -38,59 +38,69 @@ app.get('/api/callback', async (req, res, next) => {
 			headers: { Authorization: `Bearer ${tokenResponse.data.access_token}` },
 		});
 
-        const user = {
-            id: userDataResponse.data.id, 
-            username: userDataResponse.data.username, 
-            name: userDataResponse.data.global_name
-        };
+		const user = {
+			id: userDataResponse.data.id,
+			username: userDataResponse.data.username,
+			name: userDataResponse.data.global_name,
+		};
 
-        const accessToken = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET);
+		const accessToken = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET);
 
-		res.json({token: accessToken});
+		res.json({ token: accessToken });
 	} catch (err) {
 		return next(err);
 	}
 });
 
 app.get('/api/user', authenticateToken, async (req, res) => {
-	let user = await User.findOne({discordId: req.user.id}).lean().select('-_id -__v');;
+	let user = await User.findOne({ discordId: req.user.id }).lean().select('-_id -__v');
 	if (!user) {
 		user = req.user;
 	}
 	res.json(user);
 });
 
-app.post('/submit', authenticateToken, async (req, res) => {
-    const score = Number(req.headers['score']);
-    if (score && score > 0 && score < 999) {
-		await User.findOneAndUpdate({discordId: req.user.id}, {
-			discordId: req.user.id,
-			username: req.user.username,
-			name: req.user.name,
-			highscore: score,
-			highscoreDate: new Date(),
-		}, {upsert: true});
+app.get('/api/scores', async (req, res) => {
+	const users = await User.find().lean().sort({ highscore: -1 }).limit(20).select('username highscore -_id');
 
-        res.sendStatus(200);
-    } else {
+	res.json(users);
+});
+
+app.post('/submit', authenticateToken, async (req, res) => {
+	const score = Number(req.headers['score']);
+	if (score && score > 0 && score < 999) {
+		await User.findOneAndUpdate(
+			{ discordId: req.user.id },
+			{
+				discordId: req.user.id,
+				username: req.user.username,
+				name: req.user.name,
+				highscore: score,
+				highscoreDate: new Date(),
+			},
+			{ upsert: true }
+		);
+
+		res.sendStatus(200);
+	} else {
 		res.status(400).send('Invalid score');
 	}
 });
 
 function authenticateToken(req, res, next) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    if (token == null) {
-        return res.sendStatus(401);
-    }
+	const authHeader = req.headers['authorization'];
+	const token = authHeader && authHeader.split(' ')[1];
+	if (token == null) {
+		return res.sendStatus(401);
+	}
 
-    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
-        if (err) {
-            return res.sendStatus(403);
-        }
-        req.user = user;
-        next();
-    });
+	jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
+		if (err) {
+			return res.sendStatus(403);
+		}
+		req.user = user;
+		next();
+	});
 }
 
 app.listen(process.env.PORT, () => {
