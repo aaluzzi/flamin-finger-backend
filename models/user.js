@@ -4,8 +4,10 @@ const userSchema = new mongoose.Schema({
   discordId: String,
   username: String,
   name: String,
-  highscore: Number,
-  highscoreDate: Date,
+  mouseHighscore: Number,
+  mouseHighscoreDate: Date,
+  touchHighscore: Number,
+  touchHighscoreDate: Date,
 });
 
 module.exports = mongoose.model('User', userSchema);
